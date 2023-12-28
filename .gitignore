@@ -1,0 +1,4 @@
+__pycache__/
+*.ui
+menu.py
+login.py
