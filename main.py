@@ -16,6 +16,7 @@ class Window(QtWidgets.QMainWindow):
 
         self.setWindowTitle(title)
         self.resize(600,500)
+        self.current_data = False
 
         self.login = QtWidgets.QWidget()
         self.login_config = Ui_login_widget()
@@ -29,10 +30,15 @@ class Window(QtWidgets.QMainWindow):
         self.drawers_config = Ui_drawers_widget()
         self.drawers_config.setupUi(self.drawers)
 
+        self.table_view = QtWidgets.QWidget()
+        self.table_config = Ui_table_view()
+        self.table_config.setupUi(self.table_view)
+
         self.pages = QtWidgets.QStackedWidget()
         self.pages.addWidget(self.login)
         self.pages.addWidget(self.menu)
         self.pages.addWidget(self.drawers)
+        self.pages.addWidget(self.table_view)
         self.pages.setCurrentWidget(self.login)
 
         self.setCentralWidget(self.pages)
@@ -46,6 +52,10 @@ class Window(QtWidgets.QMainWindow):
         self.menu_config.boton_drawers.clicked.connect(lambda:self.change_page(self.drawers))
         self.drawers_config.back_to_menu.clicked.connect(lambda:self.change_page(self.menu))
         self.drawers_config.new_drawer.clicked.connect(self.create_drawer)
+        self.table_config.button_back.clicked.connect(lambda:self.change_page(self.drawers))
+        self.table_config.button_add.clicked.connect(lambda: self.resize_table("add"))
+        self.table_config.button_delete.clicked.connect(lambda: self.resize_table("delete"))
+        self.table_config.button_edit.clicked.connect(self.edit_table)
 
     def change_page(self,widget):
         
@@ -79,8 +89,6 @@ class Window(QtWidgets.QMainWindow):
                 print(err)
         deleteFile(str(num)+".csv",callback)
 
-        print("deleting "+str(num))
-
         self.refresh_drawers()
 
     def show_drawers(self):
@@ -105,8 +113,8 @@ class Window(QtWidgets.QMainWindow):
             button_delete.setObjectName("delete_"+str(num))
             self.drawers_config.formLayout_2.setWidget(i+1, QtWidgets.QFormLayout.LabelRole,button_delete)
             
+            #Partial function allows us to have the function with the fixated index parameter
             partial_function = partial(self.delete_drawer,num=num)
-
             button_delete.clicked.connect(partial_function)
             
             drawer = QtWidgets.QPushButton(self.drawers_config.scrollAreaWidget)
@@ -120,6 +128,9 @@ class Window(QtWidgets.QMainWindow):
             drawer.setText("Çekmece "+str(num))
             drawer.setObjectName("drawer_"+str(num))
             self.drawers_config.formLayout_2.setWidget(i+1, QtWidgets.QFormLayout.FieldRole,drawer)
+
+            partial_function_2 = partial(self.show_table,num=num)
+            drawer.clicked.connect(partial_function_2)
 
     def create_drawer(self):
 
@@ -145,10 +156,73 @@ class Window(QtWidgets.QMainWindow):
 
         emptyFile(str(my_number)+".csv",callback)
 
+    def show_table(self,num):
 
+        self.currentTable = num
+        self.pages.setCurrentWidget(self.table_view)
+        self.table_config.title.setText("Çekmece "+str(num))
+        table = self.table_config.tableWidget
+        table.setEnabled(False)
 
+        def callback(err,data):
+            if(err is not None):
+                print(err)
+            else:
+                self.current_data = data
+                table.setRowCount(len(data))
+                for i,row in enumerate(data):
+                
+                    table.setItem(i,0,QtWidgets.QTableWidgetItem(row["isim"]))
+                    table.setItem(i,1,QtWidgets.QTableWidgetItem(row["kategori"]))
+                    table.setItem(i,2,QtWidgets.QTableWidgetItem(row["miktar"]))
 
+        readFile(str(num)+".csv",callback)
+
+    def edit_table(self,num):
+
+        table = self.table_config.tableWidget
+
+        switch = {
+            0 : "isim",
+            1: "kategori",
+            2: "miktar"
+            }
         
+        if(not table.isEnabled()):
+            table.setEnabled(True)
+
+        else:
+            table.setEnabled(False)
+            content = []
+            for i in range(table.rowCount()):
+                content.append({})
+                for j in range(table.columnCount()):
+                    try:
+                        text = table.item(i,j).text()
+                    except:
+                        text = " "
+                    finally:
+                        content[i][switch[j]] = text
+                    
+            def callback(err):
+                if(err is not None):
+                    print(err)
+                else:
+                    self.current_data = content
+
+            if(self.current_data != content):
+                newFile(str(self.currentTable)+".csv",content,callback)
+
+    def resize_table(self,operation):
+
+        table = self.table_config.tableWidget
+        amount = table.rowCount()
+
+        if(operation == "add" and table.isEnabled()):
+            table.setRowCount(amount+1)
+
+        if(operation == "delete" and table.isEnabled()):
+            table.setRowCount(amount-1)
 
 
 
